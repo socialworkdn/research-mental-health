@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>แบบประเมิน - ระบบบันทึกข้อมูลการวิจัย HIV - Mental Health</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Sarabun', sans-serif; }
+    .radio-label { cursor: pointer; }
+    input[type="radio"] { transform: scale(1.3); cursor: pointer; }
+    .sticky-col {
+      position: sticky;
+      left: 0;
+      background: white;
+      z-index: 1;
+      box-shadow: 2px 0 4px -2px rgba(0,0,0,0.15);
+    }
+    thead .sticky-col { background: #f9fafb; z-index: 2; }
+    .scroll-hint { display: none; }
+    @media (max-width: 767px) {
+      .scroll-hint { display: block; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-12">
+
+  <!-- Nav bar -->
+  <nav class="bg-white shadow-sm border-b sticky top-0 z-20">
+    <div class="container mx-auto max-w-4xl px-4 py-3 flex justify-between items-center">
+      <span class="font-bold text-gray-700 text-sm md:text-base">ระบบบันทึกข้อมูลการวิจัย</span>
+      <div class="flex gap-3 text-sm">
+        <a href="index.html" class="text-gray-500 hover:text-blue-600">ลงทะเบียน</a>
+        <span class="text-blue-600 font-semibold">ประเมิน</span>
+        <a href="dashboard.html" class="text-gray-500 hover:text-blue-600">Dashboard</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6 text-center relative">
+      <h1 class="text-2xl font-bold text-gray-800">แบบประเมินความเครียดและการดูแลสุขภาพจิต</h1>
+      <p class="text-gray-500">สำหรับผู้ติดเชื้อเอชไอวี/ผู้ป่วยเอดส์รายใหม่ โรงพยาบาลสมเด็จพระสังฆราช (อมฺพรมหาเถร)</p>
+    </div>
+
+    <!-- Step 1: ค้นหา / ยืนยันผู้ป่วย -->
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 mb-6">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">ส่วนที่ 1: ข้อมูลการประเมิน</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">ระบุรหัสผู้ป่วย (SN)</label>
+          <div class="flex gap-2">
+            <input type="text" id="sn" required placeholder="เช่น 66001"
+                   class="flex-1 p-3 border rounded focus:ring-2 focus:ring-blue-500 outline-none">
+            <button type="button" onclick="lookupSN()" id="btnLookup"
+                    class="bg-gray-700 hover:bg-gray-800 text-white font-semibold px-4 rounded shadow whitespace-nowrap">
+              ตรวจสอบ
+            </button>
+          </div>
+          <p class="text-xs text-red-500 mt-1">* ต้องตรงกับที่ลงทะเบียนไว้ในหน้าแรก</p>
+          <div id="snResult" class="mt-3"></div>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">ช่วงเวลาประเมิน</label>
+          <div class="flex gap-4">
+            <label class="flex-1 cursor-pointer">
+              <input type="radio" name="phase" value="before" required class="peer sr-only">
+              <div class="p-3 text-center border rounded peer-checked:bg-blue-600 peer-checked:text-white transition">
+                Before (ก่อนใช้บริการ)
+              </div>
+            </label>
+            <label class="flex-1 cursor-pointer">
+              <input type="radio" name="phase" value="after" required class="peer sr-only">
+              <div class="p-3 text-center border rounded peer-checked:bg-green-600 peer-checked:text-white transition">
+                After (หลังใช้บริการ)
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6 flex items-center gap-4">
+      <div class="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div id="progressBar" class="bg-blue-600 h-3 rounded-full transition-all" style="width:0%"></div>
+      </div>
+      <span class="text-sm text-gray-600 whitespace-nowrap" id="progressText">ตอบแล้ว 0/20 ข้อ</span>
+    </div>
+
+    <form id="assessmentForm" onsubmit="submitAssessment(event)" class="space-y-6">
+
+      <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold text-gray-800">ส่วนที่ 2: แบบประเมินความเครียด (ST5)</h2>
+          <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded text-sm">คะแนนรวม: <span id="st5-total" class="font-bold text-blue-600">0</span></span>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">ให้คะแนนตามอาการที่เกิดขึ้นในระยะ 2-4 สัปดาห์ (0=แทบไม่มี, 1=เป็นบางครั้ง, 2=บ่อยครั้ง, 3=ประจำ) </p>
+        <p class="scroll-hint text-xs text-gray-400 mb-2">&larr; เลื่อนซ้าย-ขวาเพื่อดูตัวเลือกทั้งหมด</p>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 sticky-col min-w-[200px]">อาการ / ความรู้สึก</th>
+                <th class="px-2 py-3 text-center w-12">0</th>
+                <th class="px-2 py-3 text-center w-12">1</th>
+                <th class="px-2 py-3 text-center w-12">2</th>
+                <th class="px-2 py-3 text-center w-12">3</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="st5Table"></tbody>
+          </table>
+        </div>
+        <div class="mt-2 text-right text-sm text-gray-500" id="st5-result">แปลผล: -</div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold text-gray-800">ส่วนที่ 3: การดูแลสุขภาพจิตตนเอง</h2>
+          <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded text-sm">คะแนนรวม: <span id="sc-total" class="font-bold text-blue-600">0</span></span>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">โปรดเลือกช่องที่ตรงกับความเป็นจริงมากที่สุด (5=มากที่สุด ... 1=น้อยที่สุด)</p>
+        <p class="scroll-hint text-xs text-gray-400 mb-2">&larr; เลื่อนซ้าย-ขวาเพื่อดูตัวเลือกทั้งหมด</p>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 sticky-col min-w-[200px]">คำถาม</th>
+                <th class="px-1 py-3 text-center w-10">5<br>มากสุด</th>
+                <th class="px-1 py-3 text-center w-10">4<br>มาก</th>
+                <th class="px-1 py-3 text-center w-10">3<br>ปานกลาง</th>
+                <th class="px-1 py-3 text-center w-10">2<br>น้อย</th>
+                <th class="px-1 py-3 text-center w-10">1<br>น้อยสุด</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="selfCareTable"></tbody>
+          </table>
+        </div>
+        <div class="mt-2 text-right text-sm text-gray-500" id="sc-result">แปลผล: -</div>
+      </div>
+
+      <div class="text-center">
+        <button type="submit" id="btnSave" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded-full shadow-lg transform transition hover:scale-105">
+          บันทึกผลการประเมิน
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    const st5Questions = [
+      "1. มีปัญหาการนอน นอนไม่หลับหรือนอนมาก",
+      "2. มีสมาธิน้อยลง",
+      "3. หงุดหงิด / กระวนกระวาย / ว้าวุ่นใจ",
+      "4. รู้สึกเบื่อ เซ็ง",
+      "5. ไม่อยากพบปะผู้คน"
+    ];
+
+    const selfCareQuestions = [
+      "1. ท่านรู้สึกภูมิใจในตนเอง เมื่อนึกถึงสิ่งดี ๆ ที่ทำได้สำเร็จ",
+      "2. ท่านสามารถทำสิ่งต่าง ๆ ได้ดีต่างจากคนอื่นและรู้สึกเท่าเทียมกับผู้อื่น",
+      "3. ท่านแก้ไขคลี่คลายเรื่องราวยุ่งยากลำบากใจได้",
+      "4. ท่านเคารพและเชื่อมั่นในศักดิ์ศรีตนเองและผู้อื่น",
+      "5. ท่านเลือกแนวทางดำเนินชีวิตได้ด้วยตนเอง",
+      "6. ท่านมีทางเลือกในการตัดสินใจแก้ปัญหาได้หลายทาง",
+      "7. ท่านสามารถวางแผนดำเนินชีวิตตนเองได้อย่างเหมาะสม",
+      "8. ท่านสามารถยอมรับเรื่องราวที่เกิดขึ้นในชีวิตไม่ว่าดีหรือไม่ดีได้",
+      "9. ท่านเป็นผู้สร้างความสุข ความทุกข์ให้ตนเอง",
+      "10. ท่านรู้สึกจิตใจสงบ เป็นสุข และอิสระ",
+      "11. ท่านเคารพการตัดสินใจของตนเองและผู้อื่น",
+      "12. ท่านใช้ชีวิตอย่างเหมาะสมตามความต้องการแท้จริงของตนเอง",
+      "13. ท่านมีความหวังในการแก้ไขปัญหาเสมอ",
+      "14. ท่านยอมรับความรู้สึกไม่ดีของตนเองและผู้อื่นได้",
+      "15. ท่านชื่นชมตนเอง รู้สึกมีคุณค่า ให้กำลังใจตนเองและผู้อื่นได้"
+    ];
+
+    // Generate ตาราง ST5
+    const st5Table = document.getElementById('st5Table');
+    st5Questions.forEach((q, index) => {
+      const idx = index + 1;
+      const row = `
+        <tr>
+          <td class="px-4 py-3 sticky-col">${q}</td>
+          ${[0,1,2,3].map(val => `
+            <td class="text-center">
+              <input type="radio" name="st5_${idx}" value="${val}" onclick="onAnswerChange()" required>
+            </td>
+          `).join('')}
+        </tr>
+      `;
+      st5Table.insertAdjacentHTML('beforeend', row);
+    });
+
+    // Generate ตาราง Self Care
+    const scTable = document.getElementById('selfCareTable');
+    selfCareQuestions.forEach((q, index) => {
+      const idx = index + 1;
+      const row = `
+        <tr>
+          <td class="px-4 py-3 sticky-col">${q}</td>
+          ${[5,4,3,2,1].map(val => `
+            <td class="text-center">
+              <input type="radio" name="sc_${idx}" value="${val}" onclick="onAnswerChange()" required class="cursor-pointer">
+            </td>
+          `).join('')}
+        </tr>
+      `;
+      scTable.insertAdjacentHTML('beforeend', row);
+    });
+
+    function onAnswerChange() {
+      calcST5();
+      calcSelfCare();
+      updateProgress();
+    }
+
+    function updateProgress() {
+      let answered = 0;
+      for (let i = 1; i <= 5; i++) {
+        if (document.querySelector(`input[name="st5_${i}"]:checked`)) answered++;
+      }
+      for (let i = 1; i <= 15; i++) {
+        if (document.querySelector(`input[name="sc_${i}"]:checked`)) answered++;
+      }
+      const pct = Math.round((answered / 20) * 100);
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressText').innerText = `ตอบแล้ว ${answered}/20 ข้อ`;
+    }
+
+    function calcST5() {
+      let total = 0;
+      for(let i=1; i<=5; i++) {
+        const els = document.getElementsByName('st5_' + i);
+        for(let el of els) { if(el.checked) total += parseInt(el.value); }
+      }
+      document.getElementById('st5-total').innerText = total;
+
+      let text = "";
+      if(total <= 4) text = "เครียดน้อย";
+      else if(total <= 7) text = "เครียดปานกลาง";
+      else if(total <= 9) text = "เครียดมาก";
+      else text = "เครียดมากที่สุด";
+      document.getElementById('st5-result').innerText = "แปลผล: " + text;
+      return total;
+    }
+
+    function calcSelfCare() {
+      let total = 0;
+      for(let i=1; i<=15; i++) {
+        const els = document.getElementsByName('sc_' + i);
+        for(let el of els) { if(el.checked) total += parseInt(el.value); }
+      }
+      document.getElementById('sc-total').innerText = total;
+
+      let text = "";
+      if(total <= 27) text = "ดูแลสุขภาพจิตได้น้อยที่สุด";
+      else if(total <= 39) text = "ดูแลสุขภาพจิตได้น้อย";
+      else if(total <= 51) text = "ดูแลสุขภาพจิตได้ปานกลาง";
+      else if(total <= 63) text = "ดูแลสุขภาพจิตได้มาก";
+      else text = "ดูแลสุขภาพจิตได้มากที่สุด";
+      document.getElementById('sc-result').innerText = "แปลผล: " + text;
+      return total;
+    }
+
+    // ค้นหา / ยืนยันผู้ป่วยด้วย SN ก่อนกรอกคะแนน
+    async function lookupSN() {
+      const sn = document.getElementById('sn').value.trim();
+      const resultDiv = document.getElementById('snResult');
+      if (!sn) {
+        Swal.fire('แจ้งเตือน', 'กรุณาระบุรหัสผู้ป่วย (SN) ก่อน', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btnLookup');
+      btn.disabled = true;
+      btn.innerText = 'กำลังค้นหา...';
+      resultDiv.innerHTML = '';
+
+      try {
+        const res = await apiGet({ action: 'findPatient', sn: sn });
+        btn.disabled = false;
+        btn.innerText = 'ตรวจสอบ';
+
+        if (res && res.found) {
+          resultDiv.innerHTML = `
+            <div class="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800">
+              <div class="font-bold mb-1">✓ พบข้อมูลผู้ป่วยในระบบ</div>
+              <div>SN: <b>${res.sn}</b> | อายุ: ${res.age} ปี | เพศ: ${res.sex} | สถานะ: ${res.status}</div>
+              <div class="mt-1 text-xs text-gray-600">
+                บันทึกคะแนน Before แล้ว: ${res.hasPre ? 'ใช่' : 'ยังไม่ได้บันทึก'} |
+                บันทึกคะแนน After แล้ว: ${res.hasPost ? 'ใช่' : 'ยังไม่ได้บันทึก'}
+              </div>
+            </div>`;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700">
+              ✗ ไม่พบรหัสผู้ป่วยนี้ในระบบ กรุณาตรวจสอบ SN หรือลงทะเบียนที่หน้าแรกก่อน
+            </div>`;
+        }
+      } catch (error) {
+        btn.disabled = false;
+        btn.innerText = 'ตรวจสอบ';
+        resultDiv.innerHTML = `<div class="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700">เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}</div>`;
+      }
+    }
+
+    function resetSaveBtn() {
+      const btn = document.getElementById('btnSave');
+      btn.disabled = false;
+      btn.innerText = 'บันทึกผลการประเมิน';
+    }
+
+    // Submit Form
+    async function submitAssessment(e) {
+      e.preventDefault();
+
+      const sn = document.getElementById('sn').value.trim();
+      const phaseEl = document.querySelector('input[name="phase"]:checked');
+      const st5Score = calcST5();
+      const selfCareScore = calcSelfCare();
+
+      if(!sn) {
+        Swal.fire('แจ้งเตือน', 'กรุณาระบุรหัสผู้ป่วย (SN)', 'warning');
+        return;
+      }
+      if(!phaseEl) {
+        Swal.fire('แจ้งเตือน', 'กรุณาเลือกช่วงเวลาประเมิน (Before/After)', 'warning');
+        return;
+      }
+      const phase = phaseEl.value;
+
+      const btn = document.getElementById('btnSave');
+      btn.disabled = true;
+      btn.innerText = 'กำลังบันทึก...';
+      Swal.fire({
+        title: 'กำลังบันทึกข้อมูล',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading() }
+      });
+
+      try {
+        const res = await apiPost('saveAssessment', {
+          sn: sn,
+          phase: phase,
+          st5Score: st5Score,
+          selfCareScore: selfCareScore
+        });
+        resetSaveBtn();
+
+        if(res.message === "SUCCESS") {
+          Swal.fire({
+            icon: 'success',
+            title: 'บันทึกสำเร็จ',
+            text: `บันทึกคะแนน ${phase} ของ SN: ${sn} เรียบร้อยแล้ว`,
+          }).then(() => {
+            document.getElementById('assessmentForm').reset();
+            document.getElementById('st5-total').innerText = '0';
+            document.getElementById('sc-total').innerText = '0';
+            document.getElementById('st5-result').innerText = 'แปลผล: -';
+            document.getElementById('sc-result').innerText = 'แปลผล: -';
+            document.getElementById('snResult').innerHTML = '';
+            updateProgress();
+          });
+        } else if (res.message === "NOT_FOUND") {
+          Swal.fire({
+            icon: 'error',
+            title: 'ไม่พบข้อมูล',
+            text: `ไม่พบรหัสผู้ป่วย ${sn} ในระบบ กรุณาตรวจสอบ หรือลงทะเบียนผู้ป่วยใหม่ก่อน`,
+          });
+        } else {
+          Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
+        }
+      } catch (error) {
+        resetSaveBtn();
+        Swal.fire({
+          icon: 'error',
+          title: 'เชื่อมต่อไม่สำเร็จ',
+          text: 'เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ: ' + error.message + ' กรุณาลองใหม่อีกครั้ง',
+        });
+      }
+    }
+
+    updateProgress();
+  </script>
+</body>
+</html>

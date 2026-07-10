@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard - ระบบบันทึกข้อมูลการวิจัย HIV - Mental Health</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Sarabun', sans-serif; }
+
+    @media print {
+      @page { size: landscape; margin: 10mm; }
+      .no-print { display: none !important; }
+      body { background-color: white !important; }
+      .bg-white { box-shadow: none !important; border: 1px solid #e5e7eb; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .print-break-avoid { break-inside: avoid; page-break-inside: avoid; }
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+      background-size: 400% 100%;
+      animation: skeleton-loading 1.4s ease infinite;
+      border-radius: 6px;
+    }
+    @keyframes skeleton-loading {
+      0% { background-position: 100% 50%; }
+      100% { background-position: 0 50%; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+
+  <!-- Nav bar -->
+  <nav class="bg-white shadow-sm border-b sticky top-0 z-10 no-print -m-6 mb-6 px-6 py-3">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <span class="font-bold text-gray-700 text-sm md:text-base">ระบบบันทึกข้อมูลการวิจัย</span>
+      <div class="flex gap-3 text-sm">
+        <a href="index.html" class="text-gray-500 hover:text-blue-600">ลงทะเบียน</a>
+        <a href="assessment.html" class="text-gray-500 hover:text-blue-600">ประเมิน</a>
+        <span class="text-blue-600 font-semibold">Dashboard</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto">
+    <div class="flex flex-col md:flex-row justify-between md:items-center mb-8 gap-4">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-800">Dashboard สรุปผลการวิจัย</h1>
+        <p class="text-gray-600">โรงพยาบาลสมเด็จพระสังฆราช (อมฺพรมหาเถร)</p>
+      </div>
+      <div class="flex items-center flex-wrap gap-2 no-print">
+        <button id="btnRefresh" onclick="refreshDashboard()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded shadow flex items-center transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh
+        </button>
+        <button id="btnExport" onclick="exportCSV()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded shadow flex items-center transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Export CSV
+        </button>
+        <a href="index.html" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded shadow">
+          กลับหน้าบันทึก
+        </a>
+        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
+          พิมพ์รายงาน
+        </button>
+      </div>
+    </div>
+
+    <div id="emptyState" class="hidden bg-white rounded-lg shadow p-12 text-center mb-8">
+      <p class="text-lg text-gray-500 mb-1">ยังไม่มีข้อมูลในระบบ</p>
+      <p class="text-sm text-gray-400">เริ่มต้นโดยลงทะเบียนผู้ป่วยที่หน้าแรก แล้วกลับมา Refresh ที่นี่</p>
+      <a href="index.html" class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow">ไปหน้าลงทะเบียน</a>
+    </div>
+
+    <div id="dashboardContent">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 print-break-avoid">
+        <div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
+          <h3 class="text-gray-500 text-sm uppercase">จำนวนผู้ป่วยทั้งหมด</h3>
+          <p class="text-3xl font-bold text-gray-800" id="totalPatients">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+          <h3 class="text-gray-500 text-sm font-semibold tracking-wide">อายุเฉลี่ย ($\bar{X} \pm S.D.$)</h3>
+          <p class="text-2xl font-bold text-gray-800 mt-1" id="ageStats">0.00 ± 0.00</p>
+        </div>
+         <div class="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500">
+          <h3 class="text-gray-500 text-sm uppercase">อายุน้อยที่สุด (Min)</h3>
+          <p class="text-3xl font-bold text-gray-800" id="minAge">0</p>
+        </div>
+         <div class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500">
+          <h3 class="text-gray-500 text-sm uppercase">อายุมากที่สุด (Max)</h3>
+          <p class="text-3xl font-bold text-gray-800" id="maxAge">0</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 print-break-avoid">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h3 class="text-lg font-bold mb-4">สัดส่วนเพศ (Sex)</h3>
+          <canvas id="sexChart" style="max-height: 250px;"></canvas>
+          <div id="sexTable" class="mt-4 text-sm"></div>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h3 class="text-lg font-bold mb-4">สถานะผู้ป่วย (Status)</h3>
+          <canvas id="statusChart" style="max-height: 250px;"></canvas>
+          <div id="statusTable" class="mt-4 text-sm"></div>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow mb-8 print-break-avoid">
+         <h3 class="text-lg font-bold mb-4">บริการทางสังคมสงเคราะห์ที่ได้รับ (ตอบได้มากกว่า 1 ข้อ)</h3>
+         <div style="height: 300px;">
+           <canvas id="servicesChart"></canvas>
+         </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow mb-8 print-break-avoid">
+         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+           <h3 class="text-lg font-bold text-gray-800">ความสัมพันธ์ระหว่างบริการที่ได้รับ กับ การเปลี่ยนแปลงของคะแนน (Impact Analysis)</h3>
+         </div>
+         <p class="text-sm text-gray-500 mb-4">
+           กราฟแสดงค่าเฉลี่ยส่วนต่างคะแนน (Post - Pre) จำแนกตามกลุ่มผู้ที่ได้รับบริการแต่ละประเภท <br>
+           <span class="text-green-600 font-bold">แท่งสีเขียว (Self Care)</span> สูง = ดีขึ้นมาก |
+           <span class="text-red-500 font-bold">แท่งสีแดง (ST5 Stress)</span> ติดลบมาก = ความเครียดลดลงมาก
+         </p>
+         <div style="height: 350px;">
+           <canvas id="impactChart"></canvas>
+         </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow mb-8 print-break-avoid">
+        <h3 class="text-xl font-bold mb-6 border-b pb-2">ผลการทดสอบสมมติฐาน (อ้างอิงจากการแจกแจงของข้อมูล)</h3>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-left text-sm whitespace-nowrap">
+            <thead class="tracking-wider border-b-2 border-gray-200 bg-gray-50 text-gray-600 font-semibold">
+              <tr>
+                <th class="px-4 py-3 text-center">ตัวแปร (Variable)</th>
+                <th class="px-4 py-3 text-center bg-blue-50">Pre-test<br>($\bar{X} \pm S.D.$)</th>
+                <th class="px-4 py-3 text-center bg-green-50">Post-test<br>($\bar{X} \pm S.D.$)</th>
+                <th class="px-4 py-3 text-center border-l border-gray-200">การแจกแจง<br>(Normality)</th>
+                <th class="px-4 py-3 text-center">สถิติที่ใช้<br>(Test Used)</th>
+                <th class="px-4 py-3 text-center">ค่าสถิติ<br>(Statistic)</th>
+                <th class="px-4 py-3 text-center">p-value</th>
+                <th class="px-4 py-3 text-center">แปลผล</th>
+              </tr>
+            </thead>
+            <tbody id="statsBody" class="text-gray-700"></tbody>
+          </table>
+        </div>
+        <div class="mt-4 text-xs text-gray-500 space-y-1">
+          <p><span class="text-red-500 font-bold">*</span> มีนัยสำคัญทางสถิติที่ระดับ .05 ($p < .05$)</p>
+          <p>** การทดสอบการแจกแจง (Normality) ประเมินจากผลต่างคะแนน (Differences) โดยใช้ Jarque-Bera Test Approximation ซึ่งเป็นการประมาณค่า อาจไม่แม่นยำนักเมื่อกลุ่มตัวอย่างมีขนาดเล็ก ควรใช้ประกอบการตัดสินใจร่วมกับสถิติอื่น</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading skeleton shown until first successful load -->
+    <div id="loadingSkeleton">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow h-24 skeleton"></div>
+        <div class="bg-white p-6 rounded-lg shadow h-24 skeleton"></div>
+        <div class="bg-white p-6 rounded-lg shadow h-24 skeleton"></div>
+        <div class="bg-white p-6 rounded-lg shadow h-24 skeleton"></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow h-64 skeleton"></div>
+        <div class="bg-white p-6 rounded-lg shadow h-64 skeleton"></div>
+      </div>
+      <div class="bg-white p-6 rounded-lg shadow h-72 mb-8 skeleton"></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    var chartInstances = {};
+    var lastData = [];
+
+    document.getElementById('dashboardContent').style.display = 'none';
+
+    loadDashboard();
+
+    async function loadDashboard() {
+      try {
+        const res = await apiGet({ action: 'dashboard' });
+        document.getElementById('loadingSkeleton').style.display = 'none';
+        if (res.success) {
+          renderDashboard(res.data);
+        } else {
+          showLoadError(res.message || 'ไม่สามารถโหลดข้อมูลได้');
+        }
+      } catch (error) {
+        document.getElementById('loadingSkeleton').style.display = 'none';
+        document.getElementById('dashboardContent').style.display = '';
+        showLoadError(error.message);
+      }
+    }
+
+    function showLoadError(message) {
+      var emptyEl = document.getElementById('emptyState');
+      emptyEl.classList.remove('hidden');
+      emptyEl.innerHTML = `
+        <p class="text-lg text-red-500 mb-1">ไม่สามารถโหลดข้อมูลได้</p>
+        <p class="text-sm text-gray-400">${message}</p>
+        <button onclick="refreshDashboard()" class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow">ลองใหม่อีกครั้ง</button>
+      `;
+    }
+
+    async function refreshDashboard() {
+      const btn = document.getElementById('btnRefresh');
+      const originalContent = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> กำลังโหลด...`;
+
+      try {
+        const res = await apiGet({ action: 'dashboard' });
+        if (res.success) {
+          renderDashboard(res.data);
+        } else {
+          alert('ไม่สามารถรีเฟรชข้อมูลได้: ' + (res.message || ''));
+        }
+      } catch (error) {
+        alert('ไม่สามารถรีเฟรชข้อมูลได้: ' + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+      }
+    }
+
+    function exportCSV() {
+      if (!lastData || lastData.length === 0) {
+        alert('ยังไม่มีข้อมูลให้ export');
+        return;
+      }
+      const headers = ["Timestamp","SN","Age","Sex","Status","SelfCare_Before","SelfCare_After","ST5_Before","ST5_After","Services"];
+      const rows = lastData.map(r => r.map(v => {
+        let s = (v === null || v === undefined) ? "" : String(v);
+        if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1) {
+          s = '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      }).join(','));
+      const csvContent = "\uFEFF" + headers.join(',') + '\n' + rows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'research_data_' + new Date().toISOString().slice(0,10) + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function renderDashboard(data) {
+      lastData = data || [];
+      document.getElementById('dashboardContent').style.display = '';
+
+      const emptyEl = document.getElementById('emptyState');
+      if (!data || data.length === 0) {
+        emptyEl.classList.remove('hidden');
+        emptyEl.innerHTML = `
+          <p class="text-lg text-gray-500 mb-1">ยังไม่มีข้อมูลในระบบ</p>
+          <p class="text-sm text-gray-400">เริ่มต้นโดยลงทะเบียนผู้ป่วยที่หน้าแรก แล้วกลับมา Refresh ที่นี่</p>
+          <a href="index.html" class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow">ไปหน้าลงทะเบียน</a>
+        `;
+        document.getElementById('dashboardContent').style.display = 'none';
+      } else {
+        emptyEl.classList.add('hidden');
+        document.getElementById('dashboardContent').style.display = '';
+      }
+
+      let ages = [], sexes = [], statuses = [], servicesRaw = [];
+      let selfCarePre = [], selfCarePost = [], st5Pre = [], st5Post = [];
+
+      if (data && data.length > 0) {
+        ages = data.map(r => Number(r[2]) || 0);
+        sexes = data.map(r => r[3]);
+        statuses = data.map(r => r[4]);
+        servicesRaw = data.map(r => r[9]);
+        selfCarePre = data.map(r => parseFloat(r[5]) || 0);
+        selfCarePost = data.map(r => parseFloat(r[6]) || 0);
+        st5Pre = data.map(r => parseFloat(r[7]) || 0);
+        st5Post = data.map(r => parseFloat(r[8]) || 0);
+      }
+
+      document.getElementById('totalPatients').innerText = (data ? data.length : 0);
+      if (ages.length > 0) {
+        const ageStats = getMeanSD(ages);
+        document.getElementById('ageStats').innerText = `${ageStats.mean.toFixed(2)} ± ${ageStats.sd.toFixed(2)}`;
+        document.getElementById('minAge').innerText = Math.min(...ages);
+        document.getElementById('maxAge').innerText = Math.max(...ages);
+      } else {
+        document.getElementById('ageStats').innerText = "0.00 ± 0.00";
+        document.getElementById('minAge').innerText = "0";
+        document.getElementById('maxAge').innerText = "0";
+      }
+
+      renderPieChart('sexChart', sexes, {1:'ชาย', 2:'หญิง', 3:'LGBTQ+'}, 'sexTable');
+      renderPieChart('statusChart', statuses, {1:'New diagnosis', 2:'New case'}, 'statusTable');
+
+      const serviceLabels = {
+        1: 'การประเมินและวินิจฉัย',
+        2: 'การบำบัดทางสังคม',
+        3: 'การฟื้นฟูสมรรถภาพ',
+        4: 'การจัดการทรัพยากร'
+      };
+      renderMultiSelectChart('servicesChart', servicesRaw, serviceLabels);
+      renderImpactChart(data, serviceLabels);
+
+      const tbody = document.getElementById('statsBody');
+      tbody.innerHTML = '';
+      tbody.appendChild(createRow('การดูแลสุขภาพจิตตนเอง (Self Care)', selfCarePre, selfCarePost));
+      tbody.appendChild(createRow('ความเครียด (ST5)', st5Pre, st5Post));
+
+      if(window.MathJax && MathJax.typesetPromise) {
+          MathJax.typesetPromise();
+      }
+    }
+
+    function getMeanSD(arr) {
+      const n = arr.length;
+      if(n === 0) return { mean: 0, sd: 0 };
+      if(n === 1) return { mean: arr[0], sd: 0 };
+      const mean = arr.reduce((a,b)=>a+b,0)/n;
+      const variance = arr.reduce((a,b)=>a+Math.pow(b-mean,2),0)/(n-1);
+      return { mean: mean, sd: Math.sqrt(variance) };
+    }
+
+    function normalcdf(z) {
+      const t = 1 / (1 + 0.2316419 * Math.abs(z));
+      const d = 0.3989423 * Math.exp(-z * z / 2);
+      const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+      return z > 0 ? 1 - p : p;
+    }
+
+    function testNormality(diffs) {
+      const n = diffs.length;
+      if (n < 4) return false;
+
+      const mean = diffs.reduce((a, b) => a + b, 0) / n;
+      let m2 = 0, m3 = 0, m4 = 0;
+
+      for (let x of diffs) {
+        let d = x - mean;
+        m2 += d * d;
+        m3 += Math.pow(d, 3);
+        m4 += Math.pow(d, 4);
+      }
+
+      m2 /= n; m3 /= n; m4 /= n;
+      if (m2 === 0) return true;
+
+      const skewness = m3 / Math.pow(m2, 1.5);
+      const kurtosis = m4 / Math.pow(m2, 2);
+
+      const jb = (n / 6) * (Math.pow(skewness, 2) + Math.pow(kurtosis - 3, 2) / 4);
+      const pValue = Math.exp(-jb / 2);
+
+      return pValue >= 0.05;
+    }
+
+    function calculatePairedTTest(pre, post) {
+      let diffs = [];
+      let sumD = 0;
+      const n = pre.length;
+      for (let i = 0; i < n; i++) {
+          let d = post[i] - pre[i];
+          diffs.push(d);
+          sumD += d;
+      }
+      const meanD = sumD / n;
+      let sumSq = 0;
+      for (let d of diffs) {
+          sumSq += Math.pow(d - meanD, 2);
+      }
+      const sdD = Math.sqrt(sumSq / (n - 1));
+
+      if (sdD === 0) return { stat: 0, p: 1 };
+
+      const t = meanD / (sdD / Math.sqrt(n));
+      const df = n - 1;
+
+      const z = t * (1 - 0.25 / df) / Math.sqrt(1 + (t * t) / (2 * df));
+      const p = 2 * (1 - normalcdf(Math.abs(z)));
+
+      return { stat: t, p: p };
+    }
+
+    function calculateWilcoxon(pre, post) {
+      let diffs = [];
+      for(let i=0; i<pre.length; i++) {
+        let d = post[i] - pre[i];
+        if(d !== 0) diffs.push({ d: d, abs: Math.abs(d) });
+      }
+      const n = diffs.length;
+      if (n === 0) return { stat: 0, p: 1 };
+
+      diffs.sort((a,b) => a.abs - b.abs);
+      let ranks = new Array(n).fill(0);
+      let i = 0;
+      while (i < n) {
+        let j = i;
+        while (j < n && diffs[j].abs === diffs[i].abs) { j++; }
+        let rank = (i + 1 + j) / 2;
+        for (let k = i; k < j; k++) { ranks[k] = rank; }
+        i = j;
+      }
+
+      let wPos = 0, wNeg = 0;
+      for(let k=0; k<n; k++) {
+        if (diffs[k].d > 0) wPos += ranks[k]; else wNeg += ranks[k];
+      }
+
+      const T = Math.min(wPos, wNeg);
+      const meanT = (n * (n + 1)) / 4;
+      const sigmaT = Math.sqrt((n * (n + 1) * (2 * n + 1)) / 24);
+      const z = (T - meanT) / sigmaT;
+      const p = 2 * (1 - normalcdf(Math.abs(z)));
+
+      return { stat: z, p: p };
+    }
+
+    function createRow(label, pre, post) {
+      const statsPre = getMeanSD(pre);
+      const statsPost = getMeanSD(post);
+
+      let diffs = [];
+      for(let i=0; i<pre.length; i++) {
+        diffs.push(post[i] - pre[i]);
+      }
+
+      const isNormal = testNormality(diffs);
+
+      let testName = "";
+      let statValueStr = "";
+      let pValue = 1;
+
+      if (diffs.length < 2) {
+         testName = "N/A";
+         statValueStr = "-";
+      } else if (isNormal) {
+         testName = "Paired t-test";
+         const res = calculatePairedTTest(pre, post);
+         statValueStr = `t = ${res.stat.toFixed(2)}`;
+         pValue = res.p;
+      } else {
+         testName = "Wilcoxon Signed-Rank";
+         const res = calculateWilcoxon(pre, post);
+         statValueStr = `Z = ${res.stat.toFixed(2)}`;
+         pValue = res.p;
+      }
+
+      const isSig = pValue < 0.05;
+      const sigText = isSig
+        ? '<span class="text-green-600 font-bold">Sig.</span>'
+        : '<span class="text-gray-400">Not Sig.</span>';
+
+      const pValueDisplay = (diffs.length < 2)
+        ? "-"
+        : pValue.toFixed(4) + (isSig ? '<sup class="text-red-500 font-bold ml-1">*</sup>' : '');
+
+      const normalityText = (diffs.length < 2)
+        ? "-"
+        : (isNormal ? '<span class="text-blue-600 font-medium">ปกติ<br>(Normal)</span>' : '<span class="text-orange-500 font-medium">ไม่ปกติ<br>(Non-Normal)</span>');
+
+      const tr = document.createElement('tr');
+      tr.className = "border-b hover:bg-gray-50 transition";
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-medium text-gray-800">${label}</td>
+        <td class="px-4 py-3 text-center bg-blue-50 font-medium">${statsPre.mean.toFixed(2)} ± ${statsPre.sd.toFixed(2)}</td>
+        <td class="px-4 py-3 text-center bg-green-50 font-medium">${statsPost.mean.toFixed(2)} ± ${statsPost.sd.toFixed(2)}</td>
+        <td class="px-4 py-3 text-center border-l border-gray-200 text-sm leading-tight">${normalityText}</td>
+        <td class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-50">${testName}</td>
+        <td class="px-4 py-3 text-center">${statValueStr}</td>
+        <td class="px-4 py-3 text-center font-semibold">${pValueDisplay}</td>
+        <td class="px-4 py-3 text-center">${sigText}</td>
+      `;
+      return tr;
+    }
+
+    function renderPieChart(canvasId, dataArr, labelsMap, tableId) {
+      const counts = {};
+      dataArr.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
+      const labels = Object.keys(counts).map(k => labelsMap[k] || k);
+      const data = Object.values(counts);
+      const total = data.reduce((a,b)=>a+b,0);
+
+      if(document.getElementById(canvasId)) {
+        if(chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
+        chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
+          type: 'doughnut',
+          data: {
+            labels: labels,
+            datasets: [{ data: data, backgroundColor: ['#3B82F6', '#EF4444', '#10B981', '#F59E0B'] }]
+          }
+        });
+      }
+      if(document.getElementById(tableId)) {
+        let html = `<div class="flex justify-between font-bold border-b pb-1"><span>กลุ่ม</span><span>จำนวน (ร้อยละ)</span></div>`;
+        Object.keys(counts).forEach(k => {
+          let pct = total > 0 ? ((counts[k]/total)*100).toFixed(1) : 0;
+          html += `<div class="flex justify-between py-1 border-b border-gray-100"><span>${labelsMap[k] || k}</span><span>${counts[k]} (${pct}%)</span></div>`;
+        });
+        document.getElementById(tableId).innerHTML = html;
+      }
+    }
+
+    function renderMultiSelectChart(canvasId, dataArr, labelsMap) {
+      const counts = {};
+      dataArr.forEach(rowValue => {
+        if (!rowValue) return;
+        String(rowValue).split(',').forEach(p => {
+          let key = p.trim();
+          if (key) counts[key] = (counts[key] || 0) + 1;
+        });
+      });
+      const orderedKeys = ['1', '2', '3', '4'];
+      const labels = orderedKeys.map(k => labelsMap[k]);
+      const data = orderedKeys.map(k => counts[k] || 0);
+
+      if(document.getElementById(canvasId)) {
+        if(chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
+        chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'จำนวนครั้งที่ให้บริการ',
+              data: data,
+              backgroundColor: 'rgba(59, 130, 246, 0.8)',
+              borderColor: 'rgba(59, 130, 246, 1)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+    }
+
+    function renderImpactChart(data, labelsMap) {
+      if (!data || data.length === 0) return;
+
+      let impactStats = {
+        '1': { sumSC: 0, sumST5: 0, count: 0 },
+        '2': { sumSC: 0, sumST5: 0, count: 0 },
+        '3': { sumSC: 0, sumST5: 0, count: 0 },
+        '4': { sumSC: 0, sumST5: 0, count: 0 }
+      };
+
+      data.forEach(row => {
+        let scPre = parseFloat(row[5]) || 0;
+        let scPost = parseFloat(row[6]) || 0;
+        let st5Pre = parseFloat(row[7]) || 0;
+        let st5Post = parseFloat(row[8]) || 0;
+        let deltaSC = scPost - scPre;
+        let deltaST5 = st5Post - st5Pre;
+
+        let services = String(row[9]).split(',');
+        services.forEach(s => {
+          let key = s.trim();
+          if (impactStats[key]) {
+            impactStats[key].sumSC += deltaSC;
+            impactStats[key].sumST5 += deltaST5;
+            impactStats[key].count += 1;
+          }
+        });
+      });
+
+      const orderedKeys = ['1', '2', '3', '4'];
+      const labels = orderedKeys.map(k => labelsMap[k]);
+
+      const dataSC = orderedKeys.map(k => {
+        let n = impactStats[k].count;
+        return n > 0 ? (impactStats[k].sumSC / n).toFixed(2) : 0;
+      });
+
+      const dataST5 = orderedKeys.map(k => {
+        let n = impactStats[k].count;
+        return n > 0 ? (impactStats[k].sumST5 / n).toFixed(2) : 0;
+      });
+
+      const canvasId = 'impactChart';
+      if(document.getElementById(canvasId)) {
+        if(chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
+
+        chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Self Care Change (เพิ่มขึ้น = ดี)',
+                data: dataSC,
+                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                borderColor: 'rgba(16, 185, 129, 1)',
+                borderWidth: 1
+              },
+              {
+                label: 'ST5 Stress Change (ลดลง = ดี)',
+                data: dataST5,
+                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                borderColor: 'rgba(239, 68, 68, 1)',
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: 'คะแนนเปลี่ยนแปลงเฉลี่ย (Post - Pre)' }
+              }
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    let label = context.dataset.label || '';
+                    if (label) label += ': ';
+                    let val = context.parsed.y;
+                    return label + (val > 0 ? '+' : '') + val;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+  </script>
+</body>
+</html>
